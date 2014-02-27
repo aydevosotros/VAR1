@@ -4,7 +4,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/opencv.hpp>
 #include <vector>
 
@@ -46,20 +46,32 @@ public:
 		  ROS_ERROR("cv_bridge exception: %s", e.what());
 		  return;
 	  }
+	  vector<KeyPoint> keyPoints;
+	  Mat mask;
+	  Mat imageColor;
+	  Mat src_gray;
+	  cvtColor(src_gray, imageColor, CV_GRAY2BGR);
 
-	  cv::Mat img(cv_ptr->image);
+	  cv::FeatureDetector* detector;
+	  detector = new SiftFeatureDetector(
+		 0, // nFeatures
+		 4, // nOctaveLayers
+		 0.04, // contrastThreshold
+		 10, //edgeThreshold
+		 1.6 //sigma
+		 );
 
-	  Ptr<FeatureDetector> feature_detector = FeatureDetector::create("SIFT");
-	  vector<KeyPoint> keypoints;
-	  ROS_INFO_STREAM("antes de pillar keypoints");
-	  feature_detector->detect(img, keypoints);
-	  ROS_INFO_STREAM("Después de pillar keypoints");
+	  detector->detect(src_gray, keyPoints, mask);
 
+	  for (size_t i = 0; i < keyPoints.size(); i++) {
+		  circle(imageColor, keyPoints[i].pt, 3, CV_RGB(255, 0, 0));
+	  }
+	  Mat output;
 
 //	  drawKeypoints(img, keypoints, output, Scalar::all(-1));
 
 	  namedWindow("meh", CV_WINDOW_AUTOSIZE);
-	  imshow("meh", img);
+	  imshow("meh", output);
   }
 
   void imageCb(const sensor_msgs::ImageConstPtr& msg)
@@ -96,7 +108,7 @@ public:
 	      //se pueden pintar tambien con esta funcion
 	      //drawKeypoints(imageColor, points, imageColor, Scalar(255, 0, 0), DrawMatchesFlags::DRAW_OVER_OUTIMG);
 
-//	      imshow("Fast keypoints", imageColor);
+	      imshow("Fast keypoints", imageColor);
 
 
 	      cv::waitKey(3);
