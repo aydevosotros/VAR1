@@ -4,8 +4,15 @@
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
 
 static const std::string OPENCV_WINDOW = "Image window";
+
+namespace enc = sensor_msgs::image_encodings;
+using namespace cv;
 
 class ImageConverter
 {
@@ -15,46 +22,87 @@ class ImageConverter
   image_transport::Publisher image_pub_;
 
 public:
-  ImageConverter()
-    : it_(nh_)
+  ImageConverter() : it_(nh_)
   {
     // Subscrive to input video feed and publish output video feed
     image_sub_ = it_.subscribe("/camera/rgb/image_color", 1,
-      &ImageConverter::imageCb, this);
+      &ImageConverter::imageCbSift, this);
 //    image_pub_ = it_.advertise("/image_converter/output_video", 1);
-
-    cv::namedWindow(OPENCV_WINDOW);
-  }
+    }
 
   ~ImageConverter()
   {
     cv::destroyWindow(OPENCV_WINDOW);
   }
 
-  void imageCb(const sensor_msgs::ImageConstPtr& msg)
-  {
-    cv_bridge::CvImagePtr cv_ptr;
-    try
-    {
-      cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-    }
-    catch (cv_bridge::Exception& e)
-    {
-      ROS_ERROR("cv_bridge exception: %s", e.what());
-      return;
-    }
+  void imageCbSift(const sensor_msgs::ImageConstPtr& msg){
+	  cv_bridge::CvImagePtr cv_ptr;
+	  try
+	  {
+		  cv_ptr = cv_bridge::toCvCopy(msg, enc::BGR8);
+	  }
+	  catch (cv_bridge::Exception& e)
+	  {
+		  ROS_ERROR("cv_bridge exception: %s", e.what());
+		  return;
+	  }
 
-    // Draw an example circle on the video stream
-    if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
-      cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
+	  cv::Mat img(cv_ptr->image);
 
-    // Update GUI Window
-    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
-    cv::waitKey(3);
+	  Ptr<FeatureDetector> feature_detector = FeatureDetector::create("SIFT");
+	  vector<KeyPoint> keypoints;
+	  ROS_INFO_STREAM("antes de pillar keypoints");
+	  feature_detector->detect(img, keypoints);
+	  ROS_INFO_STREAM("Después de pillar keypoints");
 
-    // Output modified video stream
-    image_pub_.publish(cv_ptr->toImageMsg());
+
+//	  drawKeypoints(img, keypoints, output, Scalar::all(-1));
+
+	  namedWindow("meh", CV_WINDOW_AUTOSIZE);
+	  imshow("meh", img);
   }
+
+  void imageCb(const sensor_msgs::ImageConstPtr& msg)
+    {
+	  cv_bridge::CvImagePtr cv_ptr;
+	      try
+	      {
+	        cv_ptr = cv_bridge::toCvCopy(msg, enc::BGR8);
+	      }
+	      catch (cv_bridge::Exception& e)
+	      {
+	        ROS_ERROR("cv_bridge exception: %s", e.what());
+	        return;
+	      }
+	      std::cerr<<" imagecb: "<<msg->header.frame_id<<" : "<<msg->header.seq<<" : "<<msg->header.stamp<<std::endl;
+
+	      cv::Mat src_gray;
+
+	   	  cvtColor( cv_ptr->image, src_gray, CV_BGR2GRAY );
+
+	   	  imshow("BN-Image", src_gray);
+	     Ptr<cv::FeatureDetector> detector = cv::FeatureDetector::create("FAST");
+	     std::vector<cv::KeyPoint> points;
+	     detector->detect(src_gray, points);
+
+
+	      cv::Mat imageColor;
+	      cvtColor(src_gray, imageColor, CV_GRAY2BGR);
+
+	      for (size_t i = 0; i < points.size(); i++)
+	      {
+	        circle(imageColor, points[i].pt, 3, CV_RGB(255, 0, 0));
+	      }
+	      //se pueden pintar tambien con esta funcion
+	      //drawKeypoints(imageColor, points, imageColor, Scalar(255, 0, 0), DrawMatchesFlags::DRAW_OVER_OUTIMG);
+
+//	      imshow("Fast keypoints", imageColor);
+
+
+	      cv::waitKey(3);
+
+  }
+
 };
 
 int main(int argc, char** argv)
