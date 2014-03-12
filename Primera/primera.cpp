@@ -133,23 +133,79 @@ public:
 		imshow("FirstImage", imageColorFirst);
 		imshow("SecondImage", imageColorSecond);
 
-		std::stringstream ss;
-		ss << "He encontrado "<<keyPointsFirst.size()<<" en la primera";
-		ROS_INFO(ss.str().c_str());
-		std::stringstream ss2;
-		ss2 << "He encontrado "<<keyPointsSecond.size()<<" en la segunda";
-		ROS_INFO(ss2.str().c_str());
-		cv::waitKey(3);
+		SiftDescriptorExtractor extractor;
 
-		std::swap(firstImg, secondImg);
-	}
+		Mat desciptorsImg1, desciptorsImg2;
 
-	double euclideanDistance(KeyPoint kp1, KeyPoint kp2){
-		double dist;
-//		for(int i=0; i<kp1.size; i++){
-//			dist+=std::sqrt(std::pow(kp1.pt[i]-kp2.pt[i],2));
+		extractor.compute(this->firstImg, keyPointsFirst, desciptorsImg1);
+		extractor.compute(this->secondImg, keyPointsSecond, desciptorsImg2);
+
+		//-- Step 3: Matching descriptor vectors using FLANN matcher
+		FlannBasedMatcher matcher;
+		std::vector< DMatch > matches;
+		matcher.match( desciptorsImg1, desciptorsImg2, matches );
+
+		double max_dist = 0; double min_dist = 100, second_min = 100;
+
+		//-- Quick calculation of max and min distances between keypoints
+		for( int i = 0; i < desciptorsImg1.rows; i++ ){
+			double dist = matches[i].distance;
+			if( dist < second_min ){
+				if(dist < min_dist)	min_dist = dist;
+				else second_min = dist;
+			}
+			if( dist > max_dist ) max_dist = dist;
+		}
+
+		printf("-- Max dist : %f \n", max_dist );
+		printf("-- Second min dist : %f \n", second_min );
+		printf("-- Min dist : %f \n", min_dist );
+		printf("-- El mejor por 0.8 es: %f\n", second_min*0.8);
+
+		  //-- Draw only "good" matches (i.e. whose distance is less than 3*min_dist )
+//		std::vector<DMatch> good_matches;
+//
+//		for (int i = 0; i < desciptorsImg1.rows; i++) {
+//			if (matches[i].distance < 3 * min_dist) {
+//				good_matches.push_back(matches[i]);
+//			}
 //		}
 
+		float umbral = 3*min_dist;
+		if(min_dist < umbral && min_dist < 0.8*second_min){
+			printf("Por lo tanto se dibuja\n", second_min*0.8);
+			Mat img_matches;
+			drawMatches(this->firstImg, keyPointsFirst, this->secondImg, keyPointsSecond,
+					matches, img_matches, Scalar::all(-1), Scalar::all(-1),
+					vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+
+			std::stringstream ss;
+			ss << "He encontrado "<<matches.size()<<" en la primera";
+			ROS_INFO(ss.str().c_str());
+	//		std::stringstream ss2;
+	//		ss2 << "He encontrado "<<desciptorsImg2.size()<<" en la segunda";
+	//		ROS_INFO(ss2.str().c_str());
+
+			//-- Show detected matches
+			imshow("Good Matches", img_matches);
+			std::vector<Point2f> kImg1;
+			std::vector<Point2f> kImg2;
+
+			for( int i = 0; i < matches.size(); i++ )			{
+			    //-- Get the keypoints from the good matches
+			    kImg1.push_back( keyPointsFirst[ matches[i].queryIdx ].pt );
+			    kImg2.push_back( keyPointsSecond[ matches[i].trainIdx ].pt );
+			}
+			Mat H = findHomography( kImg1, kImg2, CV_RANSAC );
+			Mat output;
+
+//			perspectiveTransform( this->secondImg, output, H);
+			hconcat(this->firstImg, this->secondImg, output);
+			imshow("Result", output);
+		}
+
+		cv::waitKey(3);
+		std::swap(firstImg, secondImg);
 	}
 
 };
