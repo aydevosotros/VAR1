@@ -28,21 +28,21 @@ class PanoramCreator {
 public:
 	enum SOURCE {bag, camera, kinect};
 
-	PanoramCreator(SOURCE src) :
-			it_(nh_) {
+	PanoramCreator(SOURCE src) : it_(nh_) {
 		this->first = true;
 		switch(src){
 		case bag:
 			image_sub_ = it_.subscribe("/camera/rgb/image_color", 1,
 			&PanoramCreator::imageCbSift, this);
 			break;
-		case camara:
+		case camera:
 			image_sub_ = it_.subscribe("/camera/image_raw", 1,
 			&PanoramCreator::imageCbSift, this);
 			break;
 		case kinect:
 			image_sub_ = it_.subscribe("/camera/rgb/image_color", 1,
 			&PanoramCreator::imageCbSift, this);
+			break
 		default:
 			image_sub_ = it_.subscribe("/camera/rgb/image_color", 1,
 			&PanoramCreator::imageCbSift, this);
