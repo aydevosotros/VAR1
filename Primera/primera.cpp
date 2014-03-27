@@ -26,7 +26,7 @@ class PanoramCreator {
 	Mat secondImg;
 
 public:
-	enum SOURCE {bag, camara};
+	enum SOURCE {bag, camara, kinect};
 
 	PanoramCreator(SOURCE src) :
 			it_(nh_) {
@@ -40,6 +40,9 @@ public:
 			image_sub_ = it_.subscribe("/camera/image_raw", 1,
 			&PanoramCreator::imageCbSift, this);
 			break;
+		case kinect:
+			image_sub_ = it_.subscribe("/camera/rgb/image_color", 1,
+			&PanoramCreator::imageCbSift, this);
 		default:
 			image_sub_ = it_.subscribe("/camera/rgb/image_color", 1,
 			&PanoramCreator::imageCbSift, this);
@@ -126,7 +129,7 @@ public:
 				0.04, // contrastThreshold
 				10, //edgeThreshold
 				1.6 //sigma
-				);
+			);
 
 		detector->detect(this->firstImg, keyPointsFirst, mask);
 		detector->detect(this->secondImg, keyPointsSecond, mask);
@@ -242,7 +245,7 @@ public:
 		    }
 		}
 
-//		imshow( "transformed", transformed_image );
+		imshow( "transformed", transformed_image );
 //		imwrite("/home/antonio/ejemplowrite.png",transformed_image );
 
 		cv::Mat result;
@@ -277,7 +280,7 @@ public:
 
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "image_converter");
-	PanoramCreator ic(PanoramCreator::camara);
+	PanoramCreator ic(PanoramCreator::bag);
 	ros::spin();
 	return 0;
 }
