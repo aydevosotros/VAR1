@@ -26,7 +26,7 @@ class PanoramCreator {
 	Mat secondImg;
 
 public:
-	enum SOURCE {bag, camara, kinect};
+	enum SOURCE {bag, camera, kinect};
 
 	PanoramCreator(SOURCE src) :
 			it_(nh_) {
@@ -251,7 +251,7 @@ public:
 		cv::Mat result;
 
 		warpPerspective(this->firstImg, result, H,
-				cv::Size(1000, this->firstImg.rows));
+				cv::Size(2000, this->firstImg.rows));
 		cv::Mat half(result, cv::Rect(0, 0, this->secondImg.cols, this->secondImg.rows));
 		this->secondImg.copyTo(half);
 		result.copyTo(this->secondImg);
